@@ -1,0 +1,7 @@
+# Netlify configuration for the games arcade (static HTML, no build step)
+[build]
+  # Serve the site from the play-games folder so the site root loads
+  # play-games/index.html (the arcade homescreen).
+  publish = "play-games"
+  # No build command — these are plain static HTML/CSS/JS files.
+  command = ""
