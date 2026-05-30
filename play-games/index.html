@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Arcade · Pick Your Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0a0a12; --ink-2:#12121f;
+    --court:#e8772e; --court-bright:#ff8a3d; --gold:#f4b740;
+    --neon-green:#37e0a0; --neon-blue:#5b6bff;
+    --fg:#f5f3ef; --muted:#a8a39b;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{min-height:100%;}
+  body{
+    background:
+      radial-gradient(120% 70% at 85% -10%, rgba(232,119,46,.16), transparent 55%),
+      radial-gradient(90% 60% at -10% 110%, rgba(91,107,255,.12), transparent 50%),
+      linear-gradient(160deg,var(--ink) 0%,var(--ink-2) 100%);
+    color:var(--fg);
+    font-family:'Source Sans 3',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100dvh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:clamp(1.5rem,5vw,4rem);
+    overflow-x:hidden;
+  }
+
+  /* film grain overlay */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.16) 3px);
+    opacity:.3;mix-blend-mode:overlay;
+  }
+
+  /* floating ambient embers */
+  .embers{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+  .embers span{
+    position:absolute;bottom:-10px;width:6px;height:6px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,var(--court-bright),var(--court));
+    box-shadow:0 0 10px rgba(255,138,61,.5);opacity:0;
+    animation:rise linear infinite;
+  }
+  @keyframes rise{
+    0%{transform:translateY(0) scale(.6);opacity:0;}
+    12%{opacity:.5;}
+    90%{opacity:.3;}
+    100%{transform:translateY(-104vh) translateX(var(--dx,18px)) scale(1);opacity:0;}
+  }
+
+  .wrap{position:relative;z-index:1;width:100%;max-width:980px;text-align:center;}
+
+  header{margin-bottom:clamp(2rem,5vw,3.4rem);}
+  .kick{
+    font-size:.72rem;letter-spacing:.42em;text-transform:uppercase;font-weight:700;
+    color:var(--court-bright);margin-bottom:1rem;
+    display:inline-flex;align-items:center;gap:.8rem;
+    animation:fadeDown .8s var(--ease) both;
+  }
+  .kick::before,.kick::after{content:"";width:30px;height:2px;background:var(--court);display:inline-block;}
+  h1{
+    font-family:'Bebas Neue';font-weight:400;line-height:.9;letter-spacing:.01em;
+    font-size:clamp(3.6rem,13vw,8rem);text-transform:uppercase;
+    animation:fadeDown .9s var(--ease) .08s both;
+  }
+  h1 .glow{color:var(--court-bright);text-shadow:0 0 30px rgba(255,138,61,.5);animation:breathe 3.5s ease-in-out infinite;}
+  @keyframes breathe{50%{text-shadow:0 0 46px rgba(255,138,61,.8),0 0 14px rgba(244,183,64,.5);}}
+  .sub{margin-top:1rem;color:var(--muted);font-weight:300;font-size:clamp(1rem,1.6vw,1.2rem);animation:fadeDown 1s var(--ease) .16s both;}
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-22px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ---- Game grid ---- */
+  .grid{
+    display:grid;grid-template-columns:repeat(2,1fr);
+    gap:clamp(1.1rem,2.4vw,1.8rem);
+  }
+  @media (max-width:560px){ .grid{grid-template-columns:1fr;} }
+
+  .card{
+    position:relative;display:block;text-decoration:none;color:inherit;
+    border-radius:22px;overflow:hidden;
+    border:1px solid rgba(247,243,236,.12);
+    background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.01));
+    padding:clamp(1.6rem,3vw,2.4rem);
+    min-height:clamp(300px,42vw,360px);
+    display:flex;flex-direction:column;justify-content:flex-end;
+    transition:transform .4s var(--ease),border-color .4s,box-shadow .4s;
+    cursor:pointer;
+    animation:cardIn .8s var(--ease) both;
+  }
+  .card:nth-child(1){animation-delay:.24s;}
+  .card:nth-child(2){animation-delay:.36s;}
+  .card:nth-child(3){animation-delay:.48s;}
+  .card:nth-child(4){animation-delay:.60s;}
+  @keyframes cardIn{from{opacity:0;transform:translateY(40px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+  .card:hover,.card:focus-visible{
+    transform:translateY(-10px);outline:none;
+  }
+  .card.hoops:hover,.card.hoops:focus-visible{border-color:var(--court);box-shadow:0 30px 70px rgba(232,119,46,.28);}
+  .card.drift:hover,.card.drift:focus-visible{border-color:var(--neon-green);box-shadow:0 30px 70px rgba(55,224,160,.25);}
+  .card.stack:hover,.card.stack:focus-visible{border-color:var(--gold);box-shadow:0 30px 70px rgba(244,183,64,.26);}
+  .card.merge:hover,.card.merge:focus-visible{border-color:#9b6bff;box-shadow:0 30px 70px rgba(155,107,255,.26);}
+
+  /* glow blob in each card */
+  .card .blob{position:absolute;top:-30%;right:-20%;width:70%;aspect-ratio:1;border-radius:50%;filter:blur(40px);opacity:.5;z-index:0;transition:opacity .4s,transform .6s var(--ease);}
+  .card.hoops .blob{background:radial-gradient(circle,rgba(255,138,61,.6),transparent 65%);}
+  .card.drift .blob{background:radial-gradient(circle,rgba(55,224,160,.5),transparent 65%);}
+  .card.stack .blob{background:radial-gradient(circle,rgba(244,183,64,.55),transparent 65%);}
+  .card.merge .blob{background:radial-gradient(circle,rgba(155,107,255,.5),transparent 65%);}
+  .card:hover .blob{opacity:.85;transform:scale(1.15);}
+
+  .card .art{position:relative;z-index:1;flex:1;display:grid;place-items:center;min-height:120px;}
+  .card .meta{position:relative;z-index:1;text-align:left;}
+  .card .tag{font-size:.62rem;letter-spacing:.3em;text-transform:uppercase;font-weight:700;color:var(--muted);}
+  .card.hoops .tag{color:var(--court-bright);}
+  .card.drift .tag{color:var(--neon-green);}
+  .card.stack .tag{color:var(--gold);}
+  .card.merge .tag{color:#b794ff;}
+  .card h2{font-family:'Bebas Neue';font-weight:400;font-size:clamp(2.2rem,5vw,3.2rem);line-height:.95;letter-spacing:.02em;margin:.4rem 0 .5rem;text-transform:uppercase;}
+  .card p{color:var(--muted);font-weight:300;font-size:.92rem;line-height:1.5;max-width:34ch;}
+
+  .play{
+    display:inline-flex;align-items:center;gap:.5rem;margin-top:1.1rem;
+    font-family:'Bebas Neue';font-size:1.3rem;letter-spacing:.06em;
+    padding:.4rem 1.4rem;border-radius:100px;
+    transition:gap .3s var(--ease),background .3s;
+  }
+  .card.hoops .play{background:rgba(232,119,46,.16);color:var(--court-bright);}
+  .card.drift .play{background:rgba(55,224,160,.16);color:var(--neon-green);}
+  .card.stack .play{background:rgba(244,183,64,.16);color:var(--gold);}
+  .card.merge .play{background:rgba(155,107,255,.16);color:#b794ff;}
+  .card:hover .play{gap:.9rem;}
+  .card.hoops:hover .play{background:var(--court);color:var(--ink);}
+  .card.drift:hover .play{background:var(--neon-green);color:var(--ink);}
+  .card.stack:hover .play{background:var(--gold);color:var(--ink);}
+  .card.merge:hover .play{background:#9b6bff;color:#fff;}
+  .play svg{width:16px;height:16px;}
+
+  /* ---- Card art: animated SVG-ish ---- */
+  /* Basketball */
+  .ball{
+    width:clamp(90px,16vw,130px);aspect-ratio:1;border-radius:50%;position:relative;
+    background:radial-gradient(circle at 34% 30%,#ffae6b 0%,var(--court) 40%,#b9531a 100%);
+    box-shadow:inset -12px -12px 28px rgba(0,0,0,.45),inset 8px 8px 20px rgba(255,200,150,.35),0 14px 30px rgba(232,119,46,.4);
+    animation:dribble 1s cubic-bezier(.5,0,.85,.3) infinite;
+  }
+  .ball::before,.ball::after{content:"";position:absolute;inset:0;border-radius:50%;border:2.5px solid rgba(40,20,5,.6);}
+  .ball::before{clip-path:inset(0 48% 0 48%);}
+  .ball::after{clip-path:inset(48% 0 48% 0);}
+  .ball i{position:absolute;inset:-16% 0;border-radius:50%;border:2.5px solid rgba(40,20,5,.6);border-left-color:transparent;border-right-color:transparent;}
+  .ball i.r{transform:scaleX(-1);}
+  @keyframes dribble{
+    0%{transform:translateY(-22%) scaleY(1);}
+    45%{transform:translateY(0) scaleY(1);}
+    52%{transform:translateY(0) scale(1.12,.88);}
+    60%{transform:translateY(0) scaleY(1);}
+    100%{transform:translateY(-22%);}
+  }
+
+  /* Race car */
+  .car{
+    width:clamp(70px,12vw,96px);aspect-ratio:.6;border-radius:18px;position:relative;
+    background:linear-gradient(180deg,#ff9a4d,var(--court));
+    box-shadow:0 0 24px rgba(255,138,61,.5),0 14px 30px rgba(0,0,0,.4);
+    animation:zoom 1.4s ease-in-out infinite;
+  }
+  .car::before{content:"";position:absolute;left:18%;right:18%;top:14%;height:24%;background:#0f0f1f;border-radius:8px;}
+  .car::after{content:"";position:absolute;left:18%;right:18%;bottom:20%;height:22%;background:#0f0f1f;border-radius:8px;}
+  .car b{position:absolute;left:46%;right:46%;top:0;bottom:0;background:rgba(255,255,255,.25);}
+  .speedlines{position:absolute;inset:0;display:grid;place-items:center;}
+  .speedlines i{position:absolute;width:3px;height:26px;background:linear-gradient(var(--neon-green),transparent);border-radius:3px;opacity:.7;animation:streak .6s linear infinite;}
+  .speedlines i:nth-child(1){left:30%;animation-delay:0s;}
+  .speedlines i:nth-child(2){left:50%;animation-delay:.2s;height:34px;}
+  .speedlines i:nth-child(3){left:70%;animation-delay:.4s;}
+  @keyframes streak{0%{transform:translateY(-40px);opacity:0;}30%{opacity:.7;}100%{transform:translateY(60px);opacity:0;}}
+  @keyframes zoom{0%,100%{transform:translateY(0) rotate(-2deg);}50%{transform:translateY(-8px) rotate(2deg);}}
+
+  /* Stack tower */
+  .tower{position:relative;width:clamp(96px,16vw,130px);height:clamp(96px,16vw,130px);display:flex;flex-direction:column-reverse;align-items:center;gap:4px;}
+  .tower .blk{height:16px;border-radius:4px;box-shadow:0 6px 14px rgba(0,0,0,.35),inset 0 3px 0 rgba(255,255,255,.18);}
+  .tower .blk:nth-child(1){width:84px;background:#e8772e;}
+  .tower .blk:nth-child(2){width:78px;background:#f08a3a;}
+  .tower .blk:nth-child(3){width:72px;background:#f4b740;}
+  .tower .blk:nth-child(4){width:66px;background:#f7c95e;}
+  .tower .slider{position:absolute;top:-2px;left:50%;width:64px;height:16px;border-radius:4px;background:var(--gold);box-shadow:0 0 18px rgba(244,183,64,.6),inset 0 3px 0 rgba(255,255,255,.25);animation:slide 1.6s ease-in-out infinite;}
+  @keyframes slide{0%,100%{transform:translateX(-90%);}50%{transform:translateX(-10%);}}
+
+  /* Merge Drop orbs */
+  .orbs{position:relative;width:clamp(96px,16vw,130px);height:clamp(96px,16vw,130px);display:grid;place-items:center;}
+  .orbs .orb{position:absolute;border-radius:50%;box-shadow:inset -6px -6px 14px rgba(0,0,0,.3),inset 4px 4px 10px rgba(255,255,255,.35);}
+  .orbs .o1{width:42px;height:42px;background:radial-gradient(circle at 34% 30%,#ffb0bb,#ff5a6e);animation:mergeL 2.2s ease-in-out infinite;}
+  .orbs .o2{width:42px;height:42px;background:radial-gradient(circle at 34% 30%,#ffb0bb,#ff5a6e);animation:mergeR 2.2s ease-in-out infinite;}
+  .orbs .o3{width:58px;height:58px;background:radial-gradient(circle at 34% 30%,#ffd27a,#f4b740);box-shadow:0 0 22px rgba(244,183,64,.6),inset -6px -6px 14px rgba(0,0,0,.3),inset 4px 4px 10px rgba(255,255,255,.4);opacity:0;animation:mergePop 2.2s ease-in-out infinite;}
+  @keyframes mergeL{0%,100%{transform:translateX(-26px);opacity:1;}40%{transform:translateX(0);}45%,100%{opacity:0;}}
+  @keyframes mergeR{0%,100%{transform:translateX(26px);opacity:1;}40%{transform:translateX(0);}45%,100%{opacity:0;}}
+  @keyframes mergePop{0%,42%{opacity:0;transform:scale(.4);}50%{opacity:1;transform:scale(1.15);}70%{transform:scale(1);}92%,100%{opacity:0;transform:scale(.9);}}
+
+  footer{margin-top:clamp(2rem,5vw,3rem);color:var(--muted);font-size:.8rem;letter-spacing:.08em;animation:fadeDown 1s var(--ease) .5s both;}
+  footer a{color:var(--court-bright);text-decoration:none;}
+  footer a:hover{text-decoration:underline;}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important;}
+    .card{opacity:1 !important;transform:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="embers" id="embers" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header>
+    <div class="kick">Pick Your Game</div>
+    <h1>The <span class="glow">Arcade</span></h1>
+    <p class="sub">Two ways to play. Choose your court — or your road.</p>
+  </header>
+
+  <main class="grid">
+    <!-- Basketball -->
+    <a class="card hoops" href="games/basketball-game.html" aria-label="Play Hoops, the basketball shooter">
+      <span class="blob"></span>
+      <div class="art">
+        <div class="ball" aria-hidden="true"><i></i><i class="r"></i></div>
+      </div>
+      <div class="meta">
+        <div class="tag">Arcade · Shooter</div>
+        <h2>Hoops</h2>
+        <p>Drag the ball back like a slingshot and sink as many baskets as you can in 60 seconds. Swishes score extra.</p>
+        <span class="play">Play
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </span>
+      </div>
+    </a>
+
+    <!-- Car racing -->
+    <a class="card drift" href="games/car-racing-game.html" aria-label="Play Neon Drift, the car racing game">
+      <span class="blob"></span>
+      <div class="art">
+        <div class="car" aria-hidden="true">
+          <b></b>
+          <div class="speedlines"><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="tag">Arcade · Racer</div>
+        <h2>Neon Drift</h2>
+        <p>Weave through traffic, dodge cones and barriers, grab coins and boosts. Survive as the speed keeps climbing.</p>
+        <span class="play">Play
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </span>
+      </div>
+    </a>
+
+    <!-- Stack Tower -->
+    <a class="card stack" href="games/stack-tower-game.html" aria-label="Play Stack, the tower builder">
+      <span class="blob"></span>
+      <div class="art">
+        <div class="tower" aria-hidden="true">
+          <span class="slider"></span>
+          <span class="blk"></span>
+          <span class="blk"></span>
+          <span class="blk"></span>
+          <span class="blk"></span>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="tag">Arcade · One-Tap</div>
+        <h2>Stack</h2>
+        <p>Tap to drop the sliding block. Nail it dead-center for a perfect — miss and it gets sliced. How high can you climb?</p>
+        <span class="play">Play
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </span>
+      </div>
+    </a>
+
+    <!-- Merge Drop -->
+    <a class="card merge" href="games/merge-drop-game.html" aria-label="Play Merge Drop, the cascade merge game">
+      <span class="blob"></span>
+      <div class="art">
+        <div class="orbs" aria-hidden="true">
+          <span class="orb o3"></span>
+          <span class="orb o1"></span>
+          <span class="orb o2"></span>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="tag">Arcade · Merge</div>
+        <h2>Merge Drop</h2>
+        <p>Drop orbs into the jar. Matching ones fuse into the next tier — chain cascades for massive combos. Don't overflow the line.</p>
+        <span class="play">Play
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </span>
+      </div>
+    </a>
+  </main>
+
+  <footer>Built for game lovers · Use <strong>keyboard</strong> or <strong>touch</strong> to play</footer>
+</div>
+
+<script>
+  // build floating embers
+  (function(){
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const wrap=document.getElementById('embers'), N=20;
+    for(let i=0;i<N;i++){
+      const s=document.createElement('span');
+      const size=3+(i%5)*1.6, left=(i*5.1+(i%3)*6)%100;
+      const dur=9+(i%7)*2.2, delay=-(i*1.4)%dur;
+      const dx=(i%2?1:-1)*(18+(i%4)*12);
+      s.style.left=left+'vw';
+      s.style.width=s.style.height=size+'px';
+      s.style.animationDuration=dur+'s';
+      s.style.animationDelay=delay+'s';
+      s.style.setProperty('--dx',dx+'px');
+      if(i%3===0) s.style.background='radial-gradient(circle at 35% 30%, #6affc0, #37e0a0)';
+      wrap.appendChild(s);
+    }
+  })();
+</script>
+</body>
+</html>

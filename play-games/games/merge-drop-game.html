@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Merge Drop · Cascade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0a0a12; --ink-2:#12121f;
+    --neon:#e8772e; --neon-bright:#ff8a3d; --gold:#f4b740; --good:#37e0a0;
+    --fg:#f5f3ef; --muted:#a8a39b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;background:var(--ink);color:var(--fg);font-family:'Source Sans 3',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;}
+  body{display:grid;place-items:center;}
+
+  .stage{position:relative;width:min(100vw,520px);height:min(100dvh,880px);overflow:hidden;
+    background:radial-gradient(120% 70% at 80% -10%,rgba(232,119,46,.14),transparent 55%),
+               radial-gradient(90% 60% at -10% 110%,rgba(244,183,64,.1),transparent 50%),
+               linear-gradient(160deg,var(--ink) 0%,var(--ink-2) 100%);
+    box-shadow:0 30px 90px rgba(0,0,0,.6);}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:pointer;}
+
+  /* HUD */
+  .hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:16px 18px;pointer-events:none;z-index:5;}
+  .stat{display:flex;flex-direction:column;line-height:1;}
+  .stat .label{font-size:.6rem;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px;}
+  .stat .val{font-family:'Bebas Neue';font-size:2.4rem;letter-spacing:.02em;}
+  .stat.right{align-items:flex-end;}
+  #score .val{color:var(--neon-bright);text-shadow:0 0 20px rgba(255,138,61,.45);}
+  #score .val.bump{animation:bump .25s ease;}
+  @keyframes bump{40%{transform:scale(1.2);}}
+  #best .val{color:var(--gold);}
+
+  /* Goal-gradient progress bar (next-tier) */
+  .progress{position:absolute;top:62px;left:18px;right:18px;z-index:5;pointer-events:none;}
+  .progress .track{height:8px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(255,255,255,.1);}
+  .progress .fill{height:100%;width:0;border-radius:6px;background:linear-gradient(90deg,var(--neon),var(--gold));transition:width .35s cubic-bezier(.22,.61,.36,1);box-shadow:0 0 12px rgba(255,138,61,.6);}
+  .progress .cap{display:flex;justify-content:space-between;margin-top:5px;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+  .progress .cap b{color:var(--gold);}
+
+  /* Next-orb preview */
+  .next{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:5;pointer-events:none;}
+  .next .label{font-size:.55rem;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .next .dot{width:26px;height:26px;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,.4);}
+
+  .combo{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);font-family:'Bebas Neue';font-size:2.6rem;letter-spacing:.04em;color:var(--gold);opacity:0;pointer-events:none;z-index:6;white-space:nowrap;text-shadow:0 0 22px rgba(244,183,64,.7);}
+  .combo.show{animation:comboPop .9s cubic-bezier(.22,.61,.36,1);}
+  @keyframes comboPop{0%{opacity:0;transform:translate(-50%,-35%) scale(.5);}25%{opacity:1;transform:translate(-50%,-50%) scale(1.2);}70%{opacity:1;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-75%) scale(1);}}
+
+  .hint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);z-index:5;pointer-events:none;text-align:center;width:90%;transition:opacity .4s;}
+  .hint.hide{opacity:0;}
+
+  .overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;background:rgba(8,8,16,.84);backdrop-filter:blur(8px);transition:opacity .45s;gap:4px;}
+  .overlay.hidden{opacity:0;pointer-events:none;}
+  .overlay .kick{font-size:.72rem;letter-spacing:.4em;text-transform:uppercase;color:var(--neon-bright);font-weight:700;margin-bottom:10px;}
+  .overlay h1{font-family:'Bebas Neue';font-weight:400;font-size:clamp(3rem,15vw,5rem);line-height:.9;text-transform:uppercase;}
+  .overlay h1 .glow{color:var(--neon-bright);text-shadow:0 0 30px rgba(255,138,61,.5);}
+  .overlay p{color:var(--muted);font-weight:300;max-width:32ch;margin:12px 0 4px;line-height:1.6;}
+  .overlay .final{font-family:'Bebas Neue';font-size:4.6rem;color:var(--gold);line-height:1;margin:6px 0;text-shadow:0 0 26px rgba(244,183,64,.4);}
+  .overlay .best2{color:var(--muted);letter-spacing:.1em;font-size:.86rem;text-transform:uppercase;margin-bottom:6px;}
+  .btn{margin-top:18px;font-family:'Bebas Neue';font-size:1.8rem;letter-spacing:.08em;color:var(--ink);background:linear-gradient(135deg,var(--neon-bright),var(--neon));border:none;border-radius:100px;padding:.55rem 2.6rem;cursor:pointer;box-shadow:0 12px 30px rgba(232,119,46,.4);transition:transform .15s,box-shadow .25s;}
+  .btn:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(232,119,46,.55);}
+  .btn:active{transform:translateY(0) scale(.97);}
+  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:3px;}
+
+  @media (prefers-reduced-motion:reduce){ #score .val.bump,.combo.show{animation:none;} }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="c"></canvas>
+
+  <div class="hud">
+    <div class="stat" id="score"><span class="label">Score</span><span class="val" id="scoreVal">0</span></div>
+    <div class="stat right" id="best"><span class="label">Best</span><span class="val" id="bestVal">0</span></div>
+  </div>
+
+  <div class="next"><span class="label">Next</span><span class="dot" id="nextDot"></span></div>
+
+  <div class="progress">
+    <div class="track"><div class="fill" id="progFill"></div></div>
+    <div class="cap"><span id="progNow">Tier 1</span><span>Next: <b id="progGoal">Tier 2</b></span></div>
+  </div>
+
+  <div class="combo" id="combo"></div>
+  <div class="hint" id="hint">Move to aim · Tap / click to drop · merge matching orbs</div>
+
+  <div class="overlay" id="overlay">
+    <div class="kick">Drop · Merge · Cascade</div>
+    <h1>Merge <span class="glow">Drop</span></h1>
+    <p>Drop orbs into the jar. Two of the same touch and they merge into the next tier — chain merges for huge combos. Fill the jar to the line and it's over. How high a tier can you reach?</p>
+    <button class="btn" id="startBtn">Play</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const stage=document.getElementById('stage');
+  const $=id=>document.getElementById(id);
+  const scoreVal=$('scoreVal'), bestVal=$('bestVal'), comboEl=$('combo'), hintEl=$('hint'),
+        overlay=$('overlay'), startBtn=$('startBtn'), nextDot=$('nextDot'),
+        progFill=$('progFill'), progNow=$('progNow'), progGoal=$('progGoal');
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let W=0,H=0,DPR=1;
+  function resize(){
+    const r=stage.getBoundingClientRect();
+    W=r.width; H=r.height; DPR=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=W*DPR; canvas.height=H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    layout();
+  }
+
+  // ---- Tiers: radius + color + name. 11 tiers (cherry → melon) ----
+  const TIERS=[
+    {r:0.030,c:'#ff5a6e',n:'Cherry'},
+    {r:0.040,c:'#ff8a3d',n:'Berry'},
+    {r:0.052,c:'#f4b740',n:'Lemon'},
+    {r:0.066,c:'#9be15d',n:'Lime'},
+    {r:0.082,c:'#37e0a0',n:'Kiwi'},
+    {r:0.099,c:'#37c9e0',n:'Plum'},
+    {r:0.118,c:'#5b8bff',n:'Apple'},
+    {r:0.138,c:'#9b6bff',n:'Orange'},
+    {r:0.160,c:'#e06bd8',n:'Peach'},
+    {r:0.184,c:'#ff6ba6',n:'Coconut'},
+    {r:0.210,c:'#ffd24a',n:'Melon'},
+  ];
+  const SCORE_FOR=t=>(t+1)*(t+2);   // merging into tier t gives points
+
+  // ---- Jar geometry ----
+  let jar; // {x,y,w,h, lineY}
+  function layout(){
+    const w=Math.min(W*0.86, 440);
+    const h=H*0.62;
+    jar={ x:(W-w)/2, y:H*0.30, w, h, lineY:H*0.30+8 };
+  }
+  const rad=t=>TIERS[t].r * (jar?jar.w:W) * 0.5; // radius scales with jar width
+
+  // ---- Physics state ----
+  const GRAV=2400, FRICTION=0.99, REST=0.18;
+  let orbs=[];     // {x,y,vx,vy,t,merging,pop}
+  let parts=[];
+  let state='menu';
+  let score=0, best=parseInt(localStorage.getItem('merge_best')||'0',10);
+  let highestTier=0;          // for goal-gradient
+  let dropX=0, current=null, nextTier=0, canDrop=true, dropCooldown=0;
+  let sleep=0, shake=0, comboCount=0, comboTimer=0, overLineTimer=0;
+  let lastT=0;
+  let audioCtx=null;
+
+  bestVal.textContent=best;
+
+  // small WebAudio blip with ascending pitch per combo (juice: ascending pitch)
+  function beep(tier, combo){
+    if(reduce) return;
+    try{
+      audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      const base=220*Math.pow(2,(tier+combo)/12);
+      o.frequency.value=base; o.type='sine';
+      g.gain.setValueAtTime(0.0001,audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.18,audioCtx.currentTime+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.22);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime+0.24);
+    }catch(e){}
+  }
+
+  function spawnPool(){ // bias toward small tiers (max start tier 4)
+    const r=Math.random();
+    if(r<0.34) return 0; if(r<0.62) return 1; if(r<0.82) return 2; if(r<0.94) return 3; return 4;
+  }
+
+  function reset(){
+    state='play'; orbs=[]; parts=[];
+    score=0; highestTier=0; comboCount=0; comboTimer=0; overLineTimer=0;
+    sleep=0; shake=0; canDrop=true; dropCooldown=0;
+    layout();
+    dropX=W/2;
+    current=spawnPool(); nextTier=spawnPool();
+    paintNext();
+    // ENDOWED PROGRESS (research: goal-gradient endowed start) — seed 3 small orbs already in jar
+    for(let i=0;i<3;i++){
+      const t=Math.floor(Math.random()*2);
+      orbs.push({x:jar.x+jar.w*(0.3+0.2*i), y:jar.y+jar.h-rad(t)-2-i*4, vx:0, vy:0, t, merging:false, pop:0});
+    }
+    scoreVal.textContent='0';
+    updateProgress();
+    hintEl.classList.remove('hide');
+    lastT=performance.now();
+  }
+
+  function paintNext(){ nextDot.style.background=TIERS[nextTier].c;
+    const s=18+nextTier*2; nextDot.style.width=nextDot.style.height=Math.min(34,s)+'px'; }
+
+  function updateProgress(){
+    // goal-gradient: progress toward unlocking the NEXT-highest tier
+    const goal=Math.min(highestTier+1, TIERS.length-1);
+    progNow.textContent='Tier '+(highestTier+1)+' · '+TIERS[highestTier].n;
+    progGoal.textContent=TIERS[goal].n;
+    // count orbs of highestTier present as fraction toward making the next one (need 2)
+    const have=orbs.filter(o=>o.t===highestTier && !o.merging).length;
+    const frac = highestTier>=TIERS.length-1 ? 1 : Math.min(1, have/2);
+    progFill.style.width=(frac*100)+'%';
+  }
+
+  // ---- Input ----
+  function pointer(e){ const r=canvas.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return p.clientX-r.left; }
+  function onMove(e){ if(state!=='play')return; dropX=Math.max(jar.x+rad(current), Math.min(jar.x+jar.w-rad(current), pointer(e))); }
+  function onDrop(e){
+    if(state!=='play'||!canDrop) return;
+    if(e) e.preventDefault?.();
+    hintEl.classList.add('hide');
+    orbs.push({x:dropX, y:jar.y-rad(current)-4, vx:0, vy:0, t:current, merging:false, pop:0});
+    current=nextTier; nextTier=spawnPool(); paintNext();
+    canDrop=false; dropCooldown=0.34;   // brief gate, keeps "one more drop" rhythm fast
+  }
+  canvas.addEventListener('pointermove',onMove);
+  canvas.addEventListener('pointerdown',e=>{ onMove(e); onDrop(e); });
+  document.addEventListener('keydown',e=>{
+    if(state!=='play')return;
+    if(e.key==='ArrowLeft') dropX=Math.max(jar.x+rad(current),dropX-24);
+    else if(e.key==='ArrowRight') dropX=Math.min(jar.x+jar.w-rad(current),dropX+24);
+    else if(e.code==='Space'){ e.preventDefault(); onDrop(); }
+  });
+
+  // ---- Physics ----
+  function update(dt){
+    if(sleep>0){ sleep-=dt; if(sleep>0){ if(shake>0)shake=Math.max(0,shake-dt*3); return; } } // hit-pause freezes sim
+    if(dropCooldown>0){ dropCooldown-=dt; if(dropCooldown<=0) canDrop=true; }
+    if(comboTimer>0){ comboTimer-=dt; if(comboTimer<=0) comboCount=0; }
+    if(shake>0) shake=Math.max(0,shake-dt*3);
+
+    const floor=jar.y+jar.h, left=jar.x, right=jar.x+jar.w;
+    for(const o of orbs){
+      if(o.merging) continue;
+      o.vy+=GRAV*dt; o.x+=o.vx*dt; o.y+=o.vy*dt; o.vx*=FRICTION;
+      const r=rad(o.t);
+      if(o.x-r<left){o.x=left+r;o.vx=Math.abs(o.vx)*REST;}
+      if(o.x+r>right){o.x=right-r;o.vx=-Math.abs(o.vx)*REST;}
+      if(o.y+r>floor){o.y=floor-r;o.vy=-Math.abs(o.vy)*REST;o.vx*=0.96; if(Math.abs(o.vy)<25)o.vy=0;}
+    }
+    // collisions + merges (a few iterations for stability)
+    for(let iter=0;iter<4;iter++) collide();
+
+    // pop animation
+    for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.vy+=1200*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt*1.6; if(p.life<=0)parts.splice(i,1); }
+    for(const o of orbs){ if(o.pop>0) o.pop=Math.max(0,o.pop-dt*4); }
+
+    // lose condition: an orb resting above the line for too long
+    let over=false;
+    for(const o of orbs){ if(!o.merging && o.y-rad(o.t) < jar.lineY && Math.abs(o.vy)<30){ over=true; break; } }
+    overLineTimer = over ? overLineTimer+dt : 0;
+    if(overLineTimer>2.2) gameOver();
+
+    updateProgress();
+  }
+
+  function collide(){
+    for(let i=0;i<orbs.length;i++){
+      const a=orbs[i]; if(a.merging) continue;
+      for(let j=i+1;j<orbs.length;j++){
+        const b=orbs[j]; if(b.merging) continue;
+        const dx=b.x-a.x, dy=b.y-a.y; let d=Math.hypot(dx,dy);
+        const minD=rad(a.t)+rad(b.t);
+        if(d<minD && d>0){
+          if(a.t===b.t && a.t<TIERS.length-1){ doMerge(a,b); return; }
+          // separate
+          const nx=dx/d, ny=dy/d, push=(minD-d)/2;
+          a.x-=nx*push; a.y-=ny*push; b.x+=nx*push; b.y+=ny*push;
+          const rel=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+          if(rel<0){ const imp=rel*REST; a.vx+=nx*imp;a.vy+=ny*imp;b.vx-=nx*imp;b.vy-=ny*imp; }
+        }
+      }
+    }
+  }
+
+  function doMerge(a,b){
+    a.merging=b.merging=true;
+    const nt=a.t+1;
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    // remove the two, add new tier
+    orbs=orbs.filter(o=>o!==a&&o!==b);
+    const no={x:mx,y:my,vx:0,vy:-60,t:nt,merging:false,pop:1};
+    orbs.push(no);
+
+    // combo (research: chain cascades feel huge)
+    comboCount++; comboTimer=0.9;
+    const gained=SCORE_FOR(nt)*Math.max(1,comboCount);
+    score+=gained;
+    scoreVal.textContent=score; bumpScore();
+
+    if(nt>highestTier){ highestTier=nt; } // goal-gradient advance
+
+    // JUICE: hit-pause (sleep), shake, particles, ascending pitch
+    sleep=Math.min(0.09, 0.04+nt*0.004);
+    shake=Math.min(1.1, 0.4+nt*0.08);
+    burst(mx,my,TIERS[nt].c, 10+nt*2);
+    beep(nt, comboCount);
+    if(comboCount>=2) showCombo(comboCount, nt);
+  }
+
+  // ---- Effects ----
+  function bumpScore(){ scoreVal.classList.remove('bump'); void scoreVal.offsetWidth; scoreVal.classList.add('bump'); }
+  function showCombo(n,tier){
+    comboEl.textContent=(n>=3?'CASCADE ×'+n : 'COMBO ×'+n);
+    comboEl.style.color=TIERS[Math.min(tier,TIERS.length-1)].c;
+    comboEl.classList.remove('show'); void comboEl.offsetWidth; comboEl.classList.add('show');
+  }
+  function burst(x,y,color,n){ if(reduce)return; for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, sp=80+Math.random()*260; parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-90,life:1,color,r:2+Math.random()*3}); } }
+
+  // ---- Render ----
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.save();
+    if(shake>0) ctx.translate((Math.random()-.5)*9*shake,(Math.random()-.5)*9*shake);
+
+    drawJar();
+    // drop guide
+    if(state==='play' && canDrop){
+      ctx.save(); ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.setLineDash([3,9]); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(dropX,jar.y); ctx.lineTo(dropX,jar.y+jar.h); ctx.stroke(); ctx.restore();
+      drawOrb({x:dropX,y:jar.y-rad(current)-4,t:current,pop:0},true);
+    }
+    for(const o of orbs) drawOrb(o,false);
+    for(const p of parts){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha=1;
+    ctx.restore();
+  }
+
+  function drawJar(){
+    const {x,y,w,h,lineY}=jar;
+    // glass
+    ctx.save();
+    ctx.fillStyle='rgba(255,255,255,.025)';
+    rr(x,y,w,h,16); ctx.fill();
+    // danger line
+    ctx.strokeStyle= overLineTimer>0 ? 'rgba(255,90,90,.9)':'rgba(255,138,61,.5)';
+    ctx.setLineDash([8,8]); ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x+6,lineY); ctx.lineTo(x+w-6,lineY); ctx.stroke();
+    ctx.setLineDash([]);
+    // walls
+    ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(x,y); ctx.lineTo(x,y+h); ctx.lineTo(x+w,y+h); ctx.lineTo(x+w,y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawOrb(o,ghost){
+    const r=rad(o.t)*(1+(o.pop||0)*0.18);
+    const col=TIERS[o.t].c;
+    ctx.save();
+    if(ghost) ctx.globalAlpha=0.55;
+    const g=ctx.createRadialGradient(o.x-r*0.35,o.y-r*0.35,r*0.15,o.x,o.y,r);
+    g.addColorStop(0,lighten(col,22)); g.addColorStop(1,col);
+    ctx.fillStyle=g;
+    ctx.shadowColor=col; ctx.shadowBlur= ghost?6:Math.min(20,8+o.t*1.5);
+    ctx.beginPath(); ctx.arc(o.x,o.y,r,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    // highlight
+    ctx.fillStyle='rgba(255,255,255,.4)';
+    ctx.beginPath(); ctx.arc(o.x-r*0.34,o.y-r*0.34,r*0.22,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function rr(x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function lighten(hex,amt){
+    const m=hex.replace('#',''); let r=parseInt(m.slice(0,2),16),g=parseInt(m.slice(2,4),16),b=parseInt(m.slice(4,6),16);
+    r=Math.min(255,r+amt*2.2);g=Math.min(255,g+amt*2.2);b=Math.min(255,b+amt*2.2);
+    return `rgb(${r|0},${g|0},${b|0})`;
+  }
+
+  // ---- Loop ----
+  function frame(now){
+    try{
+      const dt=Math.min(0.033,(now-lastT)/1000)||0; lastT=now;
+      if(state==='play') update(dt);
+      else { for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.vy+=1200*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt*1.6;if(p.life<=0)parts.splice(i,1);} }
+      draw();
+    }catch(err){ console.error(err); }
+    requestAnimationFrame(frame);
+  }
+
+  function gameOver(){
+    state='over';
+    if(score>best){ best=score; localStorage.setItem('merge_best',best); bestVal.textContent=best; }
+    const reached=TIERS[highestTier].n;
+    const nextName=TIERS[Math.min(highestTier+1,TIERS.length-1)].n;
+    overlay.innerHTML=`
+      <div class="kick">Jar Full</div>
+      <h1>Game <span class="glow">Over</span></h1>
+      <div class="final">${score}</div>
+      <div class="best2">Reached ${reached} · Best ${best}</div>
+      <p>${score>=best&&score>0 ? 'New record! Master merger. 🫧' : 'You were one merge from a '+nextName+'. One more?'}</p>
+      <button class="btn" id="againBtn">Play Again</button>`;
+    overlay.classList.remove('hidden');
+    $('againBtn').addEventListener('click',start);
+  }
+
+  function start(){ overlay.classList.add('hidden'); reset(); }
+  startBtn.addEventListener('click',start);
+  window.addEventListener('resize',resize);
+
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
