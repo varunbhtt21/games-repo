@@ -78,7 +78,28 @@
     display:grid;grid-template-columns:repeat(2,1fr);
     gap:clamp(1.1rem,2.4vw,1.8rem);
   }
-  @media (max-width:560px){ .grid{grid-template-columns:1fr;} }
+  /* ---- Mobile: compact horizontal cards so all four fit with little scroll ---- */
+  @media (max-width:560px){
+    .grid{grid-template-columns:1fr;gap:.85rem;}
+    header{margin-bottom:1.4rem;}
+    h1{font-size:clamp(3rem,17vw,4.6rem);}
+    .sub{font-size:.95rem;margin-top:.6rem;}
+    .card{
+      flex-direction:row;align-items:center;
+      min-height:0;padding:1rem 1.1rem;gap:1rem;border-radius:18px;
+    }
+    .card .art{flex:0 0 84px;min-height:0;height:84px;width:84px;overflow:hidden;}
+    .card .meta{flex:1;}
+    .card h2{font-size:1.9rem;margin:.2rem 0 .35rem;}
+    .card p{font-size:.82rem;line-height:1.4;max-width:none;}
+    .card .play{margin-top:.7rem;font-size:1.05rem;padding:.32rem 1.1rem;}
+    .card .blob{top:-40%;right:-30%;width:55%;}
+    /* tap feedback instead of hover-lift on touch */
+    .card:active{transform:scale(.98);}
+    footer{margin-top:1.6rem;font-size:.72rem;}
+    /* shrink card artwork to fit the 84px slot */
+    .ball,.car,.tower,.orbs{transform:scale(.62);}
+  }
 
   .card{
     position:relative;display:block;text-decoration:none;color:inherit;
